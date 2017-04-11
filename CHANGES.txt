@@ -110,6 +110,10 @@ Breaking Changes
 
 Changes
 =======
+ 
+ - Added possibility to restore empty partitioned tables.
+
+    - Updated elasticsearch upstream to allow restore of partition templates
 
  - Added support for `GROUP BY` on joins.
 

@@ -56,6 +56,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
+import static io.crate.analyze.CreateSnapshotAnalyzedStatement.ALL_INDICES;
 import static io.crate.analyze.SnapshotSettings.IGNORE_UNAVAILABLE;
 import static io.crate.analyze.SnapshotSettings.WAIT_FOR_COMPLETION;
 
@@ -151,10 +152,13 @@ public class SnapshotRestoreDDLDispatcher {
         IndicesOptions indicesOptions = IndicesOptions.fromOptions(ignoreUnavailable, true, true, false, IndicesOptions.lenientExpandOpen());
         FutureActionListener<RestoreSnapshotResponse, Long> listener = new FutureActionListener<>(r -> 1L);
         resolveIndexNames(analysis.restoreTables(), ignoreUnavailable, transportActionProvider.transportGetSnapshotsAction(), analysis.repositoryName())
-            .whenComplete((List<String> indexNames, Throwable t) -> {
+            .whenComplete((ResolveIndicesAndTemplatesContext resolvedIndicesAndSnapshots, Throwable t) -> {
                 if (t == null) {
+                    List<String> indexNames = ImmutableList.copyOf(resolvedIndicesAndSnapshots.resolvedIndices);
+                    List<String> templateNames = analysis.restoreAll() ? ALL_INDICES : ImmutableList.copyOf(resolvedIndicesAndSnapshots.resolvedTemplates);
                     RestoreSnapshotRequest request = new RestoreSnapshotRequest(analysis.repositoryName(), analysis.snapshotName())
                         .indices(indexNames)
+                        .templates(templateNames)
                         .indicesOptions(indicesOptions)
                         .settings(analysis.settings())
                         .waitForCompletion(waitForCompletion)
@@ -169,46 +173,64 @@ public class SnapshotRestoreDDLDispatcher {
     }
 
     @VisibleForTesting
-    static CompletableFuture<List<String>> resolveIndexNames(List<RestoreSnapshotAnalyzedStatement.RestoreTableInfo> restoreTables, boolean ignoreUnavailable,
-                                                             TransportGetSnapshotsAction getSnapshotsAction, String repositoryName) {
-        Collection<String> resolvedIndices = new HashSet<>();
+    static CompletableFuture<ResolveIndicesAndTemplatesContext> resolveIndexNames(List<RestoreSnapshotAnalyzedStatement.RestoreTableInfo> restoreTables, boolean ignoreUnavailable,
+                                                                                  TransportGetSnapshotsAction getSnapshotsAction, String repositoryName) {
+        ResolveIndicesAndTemplatesContext resolveIndicesAndTemplatesContext = new ResolveIndicesAndTemplatesContext();
         List<RestoreSnapshotAnalyzedStatement.RestoreTableInfo> toResolveFromSnapshot = new ArrayList<>();
         for (RestoreSnapshotAnalyzedStatement.RestoreTableInfo table : restoreTables) {
             if (table.hasPartitionInfo()) {
-                resolvedIndices.add(table.partitionName().asIndexName());
+                resolveIndicesAndTemplatesContext.addIndex(table.partitionName().asIndexName());
+                resolveIndicesAndTemplatesContext.addTemplate(PartitionName.templateName(table.tableIdent().schema(), table.tableIdent().name()));
             } else if (ignoreUnavailable) {
                 // If ignoreUnavailable is true, it's cheaper to simply return indexName and the partitioned wildcard instead
                 // checking if it's a partitioned table or not
-                resolvedIndices.add(table.tableIdent().indexName());
-                resolvedIndices.add(PartitionName.templateName(table.tableIdent().schema(), table.tableIdent().name()) + "*");
+                resolveIndicesAndTemplatesContext.addIndex(table.tableIdent().indexName());
+                // For the case its a partitioned table we restore all partitions and the templates
+                String templateName = PartitionName.templateName(table.tableIdent().schema(), table.tableIdent().name());
+                resolveIndicesAndTemplatesContext.addIndex(templateName + "*");
+                resolveIndicesAndTemplatesContext.addTemplate(templateName);
             } else {
                 // index name needs to be resolved from snapshot
                 toResolveFromSnapshot.add(table);
             }
         }
         if (toResolveFromSnapshot.isEmpty()) {
-            return CompletableFuture.completedFuture(ImmutableList.copyOf(resolvedIndices));
+            return CompletableFuture.completedFuture(resolveIndicesAndTemplatesContext);
         }
-        final CompletableFuture<List<String>> f = new CompletableFuture<>();
+        final CompletableFuture<ResolveIndicesAndTemplatesContext> f = new CompletableFuture<>();
         getSnapshotsAction.execute(
             new GetSnapshotsRequest(repositoryName),
-            new ResolveFromSnapshotActionListener(f, toResolveFromSnapshot, resolvedIndices)
+            new ResolveFromSnapshotActionListener(f, toResolveFromSnapshot, resolveIndicesAndTemplatesContext)
         );
         return f;
+    }
+
+    static class ResolveIndicesAndTemplatesContext {
+
+        Collection<String> resolvedIndices = new HashSet<>();
+        Collection<String> resolvedTemplates = new HashSet<>();
+
+        void addIndex(String index) {
+            resolvedIndices.add(index);
+        }
+
+        void addTemplate(String template) {
+            resolvedTemplates.add(template);
+        }
     }
 
     @VisibleForTesting
     static class ResolveFromSnapshotActionListener implements ActionListener<GetSnapshotsResponse> {
 
-        private final CompletableFuture<List<String>> returnFuture;
-        private final Collection<String> resolvedIndices;
+        private final CompletableFuture<ResolveIndicesAndTemplatesContext> returnFuture;
+        private final ResolveIndicesAndTemplatesContext resolveIndicesAndTemplatesContext;
         private final List<RestoreSnapshotAnalyzedStatement.RestoreTableInfo> toResolve;
 
-        public ResolveFromSnapshotActionListener(CompletableFuture<List<String>> returnFuture,
+        public ResolveFromSnapshotActionListener(CompletableFuture<ResolveIndicesAndTemplatesContext> returnFuture,
                                                  List<RestoreSnapshotAnalyzedStatement.RestoreTableInfo> toResolve,
-                                                 Collection<String> resolvedIndices) {
+                                                 ResolveIndicesAndTemplatesContext resolveIndicesAndTemplatesContext) {
             this.returnFuture = returnFuture;
-            this.resolvedIndices = resolvedIndices;
+            this.resolveIndicesAndTemplatesContext = resolveIndicesAndTemplatesContext;
             this.toResolve = toResolve;
         }
 
@@ -216,30 +238,31 @@ public class SnapshotRestoreDDLDispatcher {
         public void onResponse(GetSnapshotsResponse getSnapshotsResponse) {
             List<SnapshotInfo> snapshots = getSnapshotsResponse.getSnapshots();
             for (RestoreSnapshotAnalyzedStatement.RestoreTableInfo table : toResolve) {
-                try {
-                    resolvedIndices.add(resolveIndexNameFromSnapshot(table.tableIdent(), snapshots));
-                } catch (TableUnknownException e) {
-                    returnFuture.completeExceptionally(e);
-                }
+                resolveTableFromSnapshot(table.tableIdent(), snapshots, resolveIndicesAndTemplatesContext);
             }
-            returnFuture.complete(ImmutableList.copyOf(resolvedIndices));
+            returnFuture.complete(resolveIndicesAndTemplatesContext);
         }
 
         @VisibleForTesting
-        public static String resolveIndexNameFromSnapshot(TableIdent tableIdent, List<SnapshotInfo> snapshots) throws TableUnknownException{
-            String indexName = tableIdent.indexName();
+        public static void resolveTableFromSnapshot(TableIdent tableIdent, List<SnapshotInfo> snapshots,
+                                                    ResolveIndicesAndTemplatesContext ctx) throws TableUnknownException {
+            String name = tableIdent.indexName();
             for (SnapshotInfo snapshot : snapshots) {
                 for (String index : snapshot.indices()) {
-                    if (indexName.equals(index)) {
-                        return indexName;
+                    if (name.equals(index)) {
+                        ctx.addIndex(index);
+                        return;
                     } else if(isIndexPartitionOfTable(index, tableIdent)) {
+                        String templateName = PartitionName.templateName(tableIdent.schema(), tableIdent.name());
                         // add a partitions wildcard
                         // to match all partitions if a partitioned table was meant
-                        return PartitionName.templateName(tableIdent.schema(), tableIdent.name()) + "*";
+                        ctx.addIndex(templateName + "*");
+                        ctx.addTemplate(templateName);
+                        return;
                     }
                 }
             }
-            throw new TableUnknownException(tableIdent);
+            ctx.addTemplate(PartitionName.templateName(tableIdent.schema(), tableIdent.name()));
         }
 
         private static boolean isIndexPartitionOfTable(String index, TableIdent tableIdent) {
