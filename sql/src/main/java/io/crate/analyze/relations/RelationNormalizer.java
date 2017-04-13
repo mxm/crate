@@ -57,12 +57,7 @@ final class RelationNormalizer {
     }
 
     private static Map<QualifiedName, AnalyzedRelation> mapSourceRelations(MultiSourceSelect multiSourceSelect) {
-        return Maps.transformValues(multiSourceSelect.sources(), new com.google.common.base.Function<RelationSource, AnalyzedRelation>() {
-            @Override
-            public AnalyzedRelation apply(RelationSource input) {
-                return input.relation();
-            }
-        });
+        return Maps.transformValues(multiSourceSelect.sources(), RelationSource::relation);
     }
 
     private static QuerySpec mergeQuerySpec(QuerySpec childQSpec, @Nullable QuerySpec parentQSpec) {

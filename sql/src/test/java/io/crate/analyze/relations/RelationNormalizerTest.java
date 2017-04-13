@@ -178,6 +178,13 @@ public class RelationNormalizerTest extends CrateDummyClusterServiceUnitTest {
     }
 
     @Test
+    public void testColumnsInWhereOnOuterRelationPointToCorrectRelation() throws Exception {
+        QueriedSelectRelation relation = (QueriedSelectRelation)
+            normalize("select * from (select * from t1 order by i limit 10) as tx where i = 10");
+        assertThat(relation.querySpec().where().query(), isSQL("(tx.i = 10)"));
+    }
+
+    @Test
     public void testRewritableNestedAggregation() throws Exception {
         QueriedRelation relation = normalize(
             "select count(*) from (select sum(i) as ii from t1 group by x) as tt");
