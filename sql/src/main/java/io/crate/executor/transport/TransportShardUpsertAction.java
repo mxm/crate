@@ -80,6 +80,8 @@ import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import static org.elasticsearch.action.support.replication.ReplicationOperation.ignoreReplicaException;
+
 @Singleton
 public class TransportShardUpsertAction extends TransportShardAction<ShardUpsertRequest, ShardUpsertRequest.Item> {
 
@@ -187,7 +189,14 @@ public class TransportShardUpsertAction extends TransportShardAction<ShardUpsert
                 }
                 continue;
             }
-            location = shardIndexOperationOnReplica(request, item, indexShard);
+
+            try {
+                location = shardIndexOperationOnReplica(request, item, indexShard);
+            } catch (Exception e) {
+                if (!ignoreReplicaException(e)) {
+                    throw e;
+                }
+            }
         }
         return location;
     }
@@ -200,11 +209,8 @@ public class TransportShardUpsertAction extends TransportShardAction<ShardUpsert
                                           Collection<ColumnIdent> notUsedNonGeneratedColumns,
                                           int retryCount) throws Exception {
         try {
-            long version;
             // try insert first without fetching the document
             if (tryInsertFirst) {
-                // set version so it will fail if already exists (will be overwritten for updates, see below)
-                version = Versions.MATCH_DELETED;
                 try {
                     item.source(prepareInsert(tableInfo, notUsedNonGeneratedColumns, request, item));
                 } catch (IOException e) {
@@ -213,16 +219,15 @@ public class TransportShardUpsertAction extends TransportShardAction<ShardUpsert
                 if (!request.overwriteDuplicates()) {
                     item.opType(IndexRequest.OpType.CREATE);
                 } else {
-                    version = Versions.MATCH_ANY;
                     item.opType(IndexRequest.OpType.INDEX);
                 }
             } else {
                 item.opType(IndexRequest.OpType.INDEX);
                 SourceAndVersion sourceAndVersion = prepareUpdate(tableInfo, request, item, indexShard);
                 item.source(sourceAndVersion.source);
-                version = sourceAndVersion.version;
+                item.version(sourceAndVersion.version);
             }
-            return shardIndexOperation(request, item, version, indexShard);
+            return shardIndexOperation(request, item, indexShard);
         } catch (VersionConflictEngineException e) {
             if (item.updateAssignments() != null) {
                 if (tryInsertFirst) {
@@ -402,15 +407,15 @@ public class TransportShardUpsertAction extends TransportShardAction<ShardUpsert
 
     private Translog.Location shardIndexOperation(ShardUpsertRequest request,
                                                   ShardUpsertRequest.Item item,
-                                                  long version,
                                                   IndexShard indexShard) throws Exception {
-        Engine.Index operation = prepareIndexOnPrimary(indexShard, version, request, item);
-        operation = updateMappingIfRequired(request, item, version, indexShard, operation);
+        Engine.Index operation = prepareIndexOnPrimary(indexShard, item.version(), request, item);
+        operation = updateMappingIfRequired(request, item, item.version(), indexShard, operation);
         indexShard.index(operation);
 
         // update the version on request so it will happen on the replicas
         item.versionType(item.versionType().versionTypeForReplicationAndRecovery());
         item.version(operation.version());
+        logger.trace("Updated version for replica: version={} versionType={}", item.version(), item.versionType());
 
         assert item.versionType().validateVersionForWrites(item.version()) : "item.version() must be valid";
 
@@ -450,20 +455,32 @@ public class TransportShardUpsertAction extends TransportShardAction<ShardUpsert
     private Translog.Location shardIndexOperationOnReplica(ShardUpsertRequest request,
                                                            ShardUpsertRequest.Item item,
                                                            IndexShard indexShard) {
-        SourceToParse sourceToParse = SourceToParse.source(SourceToParse.Origin.REPLICA, request.index(), request.type(), item.id(), item.source())
-            .routing(request.routing());
+        SourceToParse sourceToParse = SourceToParse.source(
+            SourceToParse.Origin.REPLICA,
+            request.index(),
+            request.type(),
+            item.id(),
+            item.source()
+        ).routing(request.routing());
 
         if (logger.isTraceEnabled()) {
-            if (item.opType() == IndexRequest.OpType.INDEX) {
-                logger.trace("[{} (R)] Updating document with id {}, source: {}", indexShard.shardId(), item.id(), item.source().utf8ToString());
-            } else {
-                logger.trace("[{} (R)] Creating document with id {}, source: {}", indexShard.shardId(), item.id(), item.source().utf8ToString());
-            }
+            logger.trace("[{} (R)] Index document id={} source={} opType={} version={} versionType={}",
+                indexShard.shardId(),
+                item.id(),
+                item.source().utf8ToString(),
+                item.opType(),
+                item.version(),
+                item.version());
         }
         Engine.Index index = indexShard.prepareIndexOnReplica(
-            sourceToParse, item.version(), item.versionType(), -1, request.isRetry());
+            sourceToParse, item.version(), item.versionType(), IndexRequest.UNSET_AUTO_GENERATED_TIMESTAMP, request.isRetry());
+        Mapping update = index.parsedDoc().dynamicMappingsUpdate();
+        if (update != null) {
+            throw new RetryOnReplicaException(
+                indexShard.shardId(),
+                "Mappings are not available on the replica yet, triggered update: " + update);
+        }
         indexShard.index(index);
-
         return index.getTranslogLocation();
     }
 

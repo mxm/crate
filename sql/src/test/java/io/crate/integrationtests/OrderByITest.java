@@ -22,18 +22,37 @@
 
 package io.crate.integrationtests;
 
+import com.carrotsearch.randomizedtesting.annotations.Repeat;
+import com.carrotsearch.randomizedtesting.annotations.Seed;
 import io.crate.testing.TestingHelpers;
+import org.elasticsearch.test.junit.annotations.TestLogging;
 import org.hamcrest.core.Is;
 import org.junit.Test;
 
+@Seed("B3BC816ED8DDBEB2:927655E63B82EFBA")
 public class OrderByITest extends SQLTransportIntegrationTest {
 
     @Test
+    @Repeat (iterations = 500)
+    @TestLogging("io.crate.executor.transport:TRACE")
     public void testOrderByIpType() throws Exception {
         execute("create table t1 (" +
                 "  ipp ip" +
-                ")");
+                ") ");
         ensureYellow();
+        /*
+        client().prepareBulk()
+            .add(client()
+                .prepareIndex("t1", "default")
+                .setSource("ipp", "127.0.0.1"))
+            .add(client()
+                .prepareIndex("t1", "default")
+                .setSource("{}"))
+            .add(client()
+                .prepareIndex("t1", "default")
+                .setSource("ipp", "10.0.0.1"))
+            .execute().get(10, TimeUnit.SECONDS);
+            */
         execute("insert into t1 (ipp) values (?)", new Object[][]{
             {"127.0.0.1"},
             {null},

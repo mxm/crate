@@ -299,6 +299,10 @@ public class ShardUpsertRequest extends ShardRequest<ShardUpsertRequest, ShardUp
 
         public void opType(IndexRequest.OpType opType) {
             this.opType = opType;
+            if (opType == IndexRequest.OpType.CREATE) {
+                version = Versions.MATCH_DELETED;
+                versionType = VersionType.INTERNAL;
+            }
         }
 
         @Nullable
