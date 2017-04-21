@@ -1888,6 +1888,52 @@ Javascript Language
   Setting to enable the Javascript language. As The Javascript language is an
   experimental feature and is not securely sandboxed its disabled by default.
 
+Authentication
+==============
+
+.. _host_based_auth:
+
+Host Based Authentication
+-------------------------
+
+.. NOTE::
+
+   *Host Based Authentication* (HBA) is a CrateDB Enterprise Edition feature.
+   This authentication only concerns connections over the PostgreSQL
+   Wire Protocol.
+
+**auth.host_based**
+  | *Runtime:*     ``no``
+  | *Examples:*
+  |  - ``{user:crate, address: 172.16.0.0/16}``
+  |  - ``{method: trust}``
+  |  - ``{user:crate, address: 172.16.0.0/16, method:trust}``
+
+  The host based configuration is a list of predicates that users can specify
+  to restrict or allow access to CrateDB.
+
+  If ``auth.host_based`` is not set, the host based authentication is disabled.
+  If the setting ``auth.host_based`` is present and the configurations list
+  does not contain any entry, then no client can authenticate.
+
+  The meaning of the fields are as follows:
+
+  **user:**
+    | Specifies an existing CrateDB username, only ``crate`` user (superuser)
+    | is available. If no user is specified in the entry, then
+    | all existing users can have access.
+
+  **address:**
+    | The client machine addresses that the client matches, and which are
+    | allowed to authenticate. This field can contain an IP address or a CIDR
+    | mask. For example: ``127.0.0.1`` or ``127.0.0.1/32``. If no address is specified
+    | in the entry, then access to CrateDB is open for all hosts.
+
+  **method:**
+    | The authentication method to use when a connection matches this entry.
+    | At the moment only the ``trust`` method is available. If no method is
+    | specified, the ``trust`` method is used by default.( See :ref:`hba_trust` )
+
 
 .. _`same-origin policy`: https://developer.mozilla.org/en-US/docs/Web/Security/Same-origin_policy
 .. _`cross-origin resource sharing`: https://developer.mozilla.org/en-US/docs/Web/HTTP/Access_control_CORS

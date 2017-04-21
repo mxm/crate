@@ -1,0 +1,120 @@
+.. _administration_hba:
+
+=========================
+Host Based Authentication
+=========================
+
+.. NOTE::
+
+   Host based authentication is an Enterprise Edition feature.
+   This feature only concerns connections over :ref:`postgres_wire_protocol`.
+
+This section explains how to configure CrateDB client connection and authentication.
+
+By default, the optional setting ``auth.host_based`` is absent and therefore host based
+authentication is disabled. In this instance, the CrateDB cluster allows any
+unauthenticated connections.
+
+To allow authenticated access to CrateDB from specific hosts, you need to configure
+the ``auth.host_based`` setting in the ``crate.yml`` file.
+
+Allowing Authentication to CrateDB
+==================================
+
+Client access and authentication over the :ref:`postgres_wire_protocol` is
+configured by the ``auth.host_based`` setting in the ``crate.yml`` file.
+
+The general format of the ``auth.host_based`` setting is a list of remote client
+access entries, one per line, which permit authentication to CrateDB. Each entry
+may contain no, one, or multiple fields. Allowed fields are ``user``, ``ip`` or
+``cidr``, and ``method``. The description of these fields can be found
+in :ref:`host_based_auth`.
+
+When a client sends an authentication request, CrateDB matches the provided
+username and IP address against these entries to determine which authentication
+method is required. If no entry matches, the client authentication request
+will be denied.
+
+For example, a host based configuration can look like this::
+
+    auth:
+      host_based:
+        - {user: mike, address: 32.0.0.0/8, method: trust}
+        - {user: barb, address: 172.16.0.0}
+        - {user: eleven}
+        - {method: trust}
+
+.. NOTE::
+
+   In the ``auth.host_based`` setting, the order of entries is relevant.
+   The authentication method of the first entry that matches the client
+   user and address will be used. If the authentication attempt fails,
+   subsequent entries will not be considered.
+
+In the example above:
+
+``{user: mike, address:  32.0.0.0/8, method:trust}`` means that the user ``mike``
+can authenticate to CrateDB from any IP address ranging from  32.0.0.0 to
+32.255.255.255, using the ``trust`` authentication method.
+
+``{user: barb, address: 172.16.0.0}`` means that the user ``barb`` can authenticate
+to CrateDB from the 172.16.0.0 IP Address. Since no authentication method is
+specified, the ``trust`` method will be used by default.
+
+The entry: ``{user: eleven}`` means that the user ``eleven`` can authenticate
+to CrateDB from any IP address, using the ``trust`` method.
+
+And finally the entry ``{method: trust}`` means that any existing user can
+authenticate to CrateDB from any IP address using the ``trust`` method.
+
+Authenticating as a Superuser
+=============================
+
+``crate`` Superuser
+-------------------
+
+When CrateDB is started, the cluster contains one predefined superuser. This user
+is called ``crate``.
+
+To authenticate as the superuser from a specific IP address, ``crate`` should be
+specified in the the ``auth.host_based`` setting, like this::
+
+    auth:
+      host_based:
+        - {user: crate, address: 172.16.0.0, method: trust}
+
+If no user is specified in the ``auth.host_based`` setting, CrateDB assumes that
+any existing user (or the superuser) is allowed to authenticate from the
+specified IP address, like this::
+
+    auth:
+      host_based:
+        - {address: 172.16.0.0, method: trust}
+
+
+Authentication Methods
+======================
+
+.. _hba_trust:
+
+Trust Method
+------------
+
+When the ``trust`` method is specified in an ``auth.host_based`` setting entry,
+CrateDB assumes that anyone is allowed access to the cluster, provided that
+the client's username and IP address match the setting entry.
+
+Therefore, this method allows any client to login as the CrateDB user that they
+specify, provided that this user exists in the cluster, without the need for
+a password.
+
+
+.. NOTE::
+
+   For the authentication feature to work properly, ``auth.host_based`` setting
+   configuration needs to be the same for every eligible master node. However,
+   it is possible to update the cluster state with the new configuration by
+   restarting only a single node of the cluster, because the last node that
+   joins the cluster overrides the existing host based authentication
+   configuration in the cluster state.
+
