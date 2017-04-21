@@ -36,6 +36,7 @@ import io.crate.exceptions.UnsupportedFeatureException;
 import io.crate.exceptions.VersionInvalidException;
 import io.crate.operation.predicate.MatchPredicate;
 import io.crate.planner.*;
+import io.crate.planner.fetch.FetchFeasibility;
 import io.crate.planner.fetch.FetchPushDown;
 import io.crate.planner.node.dql.Collect;
 import io.crate.planner.node.dql.QueryThenFetch;
@@ -65,12 +66,17 @@ public class QueryAndFetchConsumer implements Consumer {
 
         @Override
         public Plan visitQueriedDocTable(QueriedDocTable table, ConsumerContext context) {
-            if (!isSimpleSelect(table.querySpec(), context)) {
+            QuerySpec qs = table.querySpec();
+            if (!isSimpleSelect(qs, context)) {
                 return null;
             }
             if (!context.fetchDecider().tryFetchRewrite()) {
                 return normalSelect(table, context);
             }
+            if (!FetchFeasibility.isFetchFeasible(qs)) {
+                return normalSelect(table, context);
+            }
+
             FetchPushDown.Builder<QueriedDocTable> fetchPhaseBuilder = FetchPushDown.pushDown(table);
             if (fetchPhaseBuilder == null) {
                 return normalSelect(table, context);
