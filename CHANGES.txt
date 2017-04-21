@@ -15,6 +15,10 @@ the appropriate section of the docs.
 Breaking Changes
 ================
 
+ - Extended the subselect support. See `SELECT Reference
+  <https://crate.io/docs/reference/en/latest/sql/reference/select.html#sub-select>`
+  for details.
+
  - Due to the support of user defined functions there are new reserved keywords
    in the Crate SQL dialect: ``RETURNS``, ``CALLED`, ``REPLACE``, ``FUNCTION``,
    ``LANGUAGE``, ``INPUT``
