@@ -24,8 +24,8 @@ package io.crate.protocols.postgres;
 
 import io.crate.data.RowN;
 import io.crate.types.DataTypes;
-import org.jboss.netty.buffer.ChannelBuffer;
-import org.jboss.netty.channel.Channel;
+import io.netty.buffer.ByteBuf;
+import io.netty.channel.Channel;
 import org.junit.Test;
 import org.mockito.Answers;
 import org.mockito.ArgumentCaptor;
@@ -50,7 +50,7 @@ public class MessagesTest {
         );
         ArgumentCaptor<Object> writeCaptor = ArgumentCaptor.forClass(Object.class);
         verify(channel).write(writeCaptor.capture());
-        ChannelBuffer buffer = (ChannelBuffer) writeCaptor.getValue();
+        ByteBuf buffer = (ByteBuf) writeCaptor.getValue();
 
         // message type
         assertThat((char) buffer.readByte(), is('D'));

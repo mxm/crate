@@ -28,11 +28,10 @@ import io.crate.executor.Executor;
 import io.crate.operation.collect.stats.JobsLogs;
 import io.crate.test.integration.CrateDummyClusterServiceUnitTest;
 import io.crate.testing.SQLExecutor;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
+import io.netty.channel.Channel;
 import org.elasticsearch.common.settings.Settings;
-import org.jboss.netty.buffer.ChannelBuffer;
-import org.jboss.netty.buffer.ChannelBuffers;
-import org.jboss.netty.channel.Channel;
-import org.jboss.netty.handler.codec.embedder.DecoderEmbedder;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
@@ -40,7 +39,6 @@ import org.mockito.ArgumentCaptor;
 import javax.annotation.Nullable;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 
@@ -76,17 +74,17 @@ public class ConnectionContextTest extends CrateDummyClusterServiceUnitTest {
     public void testHandleEmptySimpleQuery() throws Exception {
         ConnectionContext ctx = new ConnectionContext(mock(SQLOperations.class));
 
-        ChannelBuffer channelBuffer = ChannelBuffers.dynamicBuffer();
+        ByteBuf channelBuffer = Unpooled.buffer();
         Messages.writeCString(channelBuffer, ";".getBytes(StandardCharsets.UTF_8));
         Channel channel = mock(Channel.class);
 
         ctx.handleSimpleQuery(channelBuffer, channel);
 
-        ArgumentCaptor<ChannelBuffer> argumentCaptor = ArgumentCaptor.forClass(ChannelBuffer.class);
+        ArgumentCaptor<ByteBuf> argumentCaptor = ArgumentCaptor.forClass(ByteBuf.class);
         // once for EmptyQueryResponse and a second time for ReadyForQuery
         verify(channel, times(2)).write(argumentCaptor.capture());
 
-        ChannelBuffer firstResponse = argumentCaptor.getAllValues().get(0);
+        ByteBuf firstResponse = argumentCaptor.getAllValues().get(0);
         byte[] responseBytes = new byte[5];
         firstResponse.readBytes(responseBytes);
         assertThat(responseBytes, is(new byte[]{'I', 0, 0, 0, 4}));
@@ -98,23 +96,28 @@ public class ConnectionContextTest extends CrateDummyClusterServiceUnitTest {
         SQLOperations.Session session = mock(SQLOperations.Session.class);
         when(sqlOperations.createSession(anyString(), anySetOf(Option.class), anyInt())).thenReturn(session);
         ConnectionContext ctx = new ConnectionContext(sqlOperations);
-        DecoderEmbedder<ChannelBuffer> e = new DecoderEmbedder<>(ctx.decoder, ctx.handler);
+        fail("fixme");
+        /*
+        DecoderEmbedder<ByteBuf> e = new DecoderEmbedder<>(ctx.decoder, ctx.handler);
 
-        ChannelBuffer buffer = ChannelBuffers.dynamicBuffer();
+        ByteBuf buffer = Unpooled.buffer();
         ClientMessages.sendStartupMessage(buffer, "doc");
         ClientMessages.sendParseMessage(buffer, "", "select ?", new int[0]);
         ClientMessages.sendFlush(buffer);
         e.offer(buffer);
 
         verify(session, times(1)).sync();
+        */
     }
 
     @Test
     public void testBindMessageCanBeReadIfTypeForParamsIsUnknown() throws Exception {
         ConnectionContext ctx = new ConnectionContext(sqlOperations);
-        DecoderEmbedder<ChannelBuffer> e = new DecoderEmbedder<>(ctx.decoder, ctx.handler);
+        fail("fixme");
+        /*
+        DecoderEmbedder<ByteBuf> e = new DecoderEmbedder<>(ctx.decoder, ctx.handler);
 
-        ChannelBuffer buffer = ChannelBuffers.dynamicBuffer();
+        ByteBuf buffer = Unpooled.buffer();
         ClientMessages.sendStartupMessage(buffer, "doc");
         ClientMessages.sendParseMessage(buffer, "S1", "select ?, ?", new int[0]); // no type hints for parameters
 
@@ -126,5 +129,6 @@ public class ConnectionContextTest extends CrateDummyClusterServiceUnitTest {
         SQLOperations.Session session = sessions.get(0);
         // If the query can be retrieved via portalName it means bind worked
         assertThat(session.getQuery("P1"), is("select ?, ?"));
+        */
     }
 }
