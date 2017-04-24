@@ -379,7 +379,6 @@ public class SnapshotRestoreIntegrationTest extends SQLTransportIntegrationTest 
     public void testRestoreEmptyPartitionedTableUsingALL() throws Exception {
         execute("create table employees(section integer, name string) partitioned by (section)");
         ensureYellow();
-        execute("refresh table employees");
 
         execute("CREATE SNAPSHOT " + snapshotName() + " ALL WITH (wait_for_completion=true)");
         execute("drop table employees");
@@ -395,7 +394,6 @@ public class SnapshotRestoreIntegrationTest extends SQLTransportIntegrationTest 
     public void testRestoreEmptyPartitionedTable() throws Exception {
         execute("create table employees(section integer, name string) partitioned by (section)");
         ensureYellow();
-        execute("refresh table employees");
 
         execute("CREATE SNAPSHOT " + snapshotName() + " ALL WITH (wait_for_completion=true)");
         execute("drop table employees");
@@ -405,13 +403,6 @@ public class SnapshotRestoreIntegrationTest extends SQLTransportIntegrationTest 
 
         execute("select table_schema || '.' || table_name from information_schema.tables where table_schema='doc'");
         assertThat(TestingHelpers.printedTable(response.rows()), is("doc.employees\n"));
-    }
-
-    @Test
-    public void testResolveAllFromSnapshotWithoutAnyTable() throws Exception {
-        execute("CREATE SNAPSHOT " + snapshotName() + " ALL WITH (wait_for_completion=true)");
-        ensureYellow();
-        execute("RESTORE SNAPSHOT " + snapshotName() + " ALL with (wait_for_completion=true)");
     }
 
     @Test
