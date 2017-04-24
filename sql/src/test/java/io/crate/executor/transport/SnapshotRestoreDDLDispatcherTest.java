@@ -98,6 +98,8 @@ public class SnapshotRestoreDDLDispatcherTest extends CrateUnitTest {
             ctx
         );
         assertThat(ctx.resolvedIndices.size(), is(0));
+        // If the snapshot doesn't contain any index which belongs to the table, it could be that the user
+        // restores an empty partitioned table. For that case we attempt to restore the table template.
         assertThat(ctx.resolvedTemplates, contains(PartitionName.templateName(null, "restoreme")));
     }
 
