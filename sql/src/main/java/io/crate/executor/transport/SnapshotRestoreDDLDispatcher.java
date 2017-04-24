@@ -153,9 +153,9 @@ public class SnapshotRestoreDDLDispatcher {
         resolveIndexNames(analysis.restoreTables(), ignoreUnavailable, transportActionProvider.transportGetSnapshotsAction(), analysis.repositoryName())
             .whenComplete((ResolveIndicesAndTemplatesContext ctx, Throwable t) -> {
                 if (t == null) {
-                    String[] indexNames = ctx.resolvedIndices.toArray(new String[ctx.resolvedIndices.size()]);
+                    String[] indexNames = ctx.resolvedIndices().toArray(new String[ctx.resolvedIndices().size()]);
                     String[] templateNames = analysis.restoreAll() ? ALL_TEMPLATES :
-                        ctx.resolvedTemplates.toArray(new String[ctx.resolvedTemplates.size()]);
+                        ctx.resolvedTemplates().toArray(new String[ctx.resolvedTemplates().size()]);
                     RestoreSnapshotRequest request = new RestoreSnapshotRequest(analysis.repositoryName(), analysis.snapshotName())
                         .indices(indexNames)
                         .templates(templateNames)
@@ -180,13 +180,13 @@ public class SnapshotRestoreDDLDispatcher {
         for (RestoreSnapshotAnalyzedStatement.RestoreTableInfo table : restoreTables) {
             if (table.hasPartitionInfo()) {
                 resolveIndicesAndTemplatesContext.addIndex(table.partitionName().asIndexName());
-                resolveIndicesAndTemplatesContext.addTemplate(table.createPartitionsTemplateName());
+                resolveIndicesAndTemplatesContext.addTemplate(table.partitionTemplate());
             } else if (ignoreUnavailable) {
                 // If ignoreUnavailable is true, it's cheaper to simply return indexName and the partitioned wildcard instead
                 // checking if it's a partitioned table or not
                 resolveIndicesAndTemplatesContext.addIndex(table.tableIdent().indexName());
                 // For the case its a partitioned table we restore all partitions and the templates
-                String templateName = table.createPartitionsTemplateName();
+                String templateName = table.partitionTemplate();
                 resolveIndicesAndTemplatesContext.addIndex(templateName + "*");
                 resolveIndicesAndTemplatesContext.addTemplate(templateName);
             } else {
@@ -208,8 +208,8 @@ public class SnapshotRestoreDDLDispatcher {
     @VisibleForTesting
     static class ResolveIndicesAndTemplatesContext {
 
-        final Collection<String> resolvedIndices = new HashSet<>();
-        final Collection<String> resolvedTemplates = new HashSet<>();
+        private final Collection<String> resolvedIndices = new HashSet<>();
+        private final Collection<String> resolvedTemplates = new HashSet<>();
 
         void addIndex(String index) {
             resolvedIndices.add(index);
@@ -217,6 +217,14 @@ public class SnapshotRestoreDDLDispatcher {
 
         void addTemplate(String template) {
             resolvedTemplates.add(template);
+        }
+
+        Collection<String> resolvedIndices() {
+            return resolvedIndices;
+        }
+
+        Collection<String> resolvedTemplates() {
+            return resolvedTemplates;
         }
     }
 
@@ -255,7 +263,7 @@ public class SnapshotRestoreDDLDispatcher {
                         ctx.addIndex(index);
                         return;
                     } else if(isIndexPartitionOfTable(index, table.tableIdent())) {
-                        String templateName = table.createPartitionsTemplateName();
+                        String templateName = table.partitionTemplate();
                         // add a partitions wildcard
                         // to match all partitions if a partitioned table was meant
                         ctx.addIndex(templateName + "*");
@@ -264,7 +272,7 @@ public class SnapshotRestoreDDLDispatcher {
                     }
                 }
             }
-            ctx.addTemplate(table.createPartitionsTemplateName());
+            ctx.addTemplate(table.partitionTemplate());
         }
 
         private static boolean isIndexPartitionOfTable(String index, TableIdent tableIdent) {

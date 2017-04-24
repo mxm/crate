@@ -53,8 +53,8 @@ public class SnapshotRestoreDDLDispatcherTest extends CrateUnitTest {
             true, null, "my_repo"
         );
         SnapshotRestoreDDLDispatcher.ResolveIndicesAndTemplatesContext ctx = f.get();
-        assertThat(ctx.resolvedIndices, containsInAnyOrder("my_table", PartitionName.templateName(null, "my_table") + "*"));
-        assertThat(ctx.resolvedTemplates, contains(".partitioned.my_table."));
+        assertThat(ctx.resolvedIndices(), containsInAnyOrder("my_table", PartitionName.templateName(null, "my_table") + "*"));
+        assertThat(ctx.resolvedTemplates(), contains(".partitioned.my_table."));
     }
 
     @Test
@@ -67,8 +67,8 @@ public class SnapshotRestoreDDLDispatcherTest extends CrateUnitTest {
             ),
             ctx
         );
-        assertThat(ctx.resolvedIndices, contains("custom.restoreme"));
-        assertThat(ctx.resolvedTemplates.size(), is(0));
+        assertThat(ctx.resolvedIndices(), contains("custom.restoreme"));
+        assertThat(ctx.resolvedTemplates().size(), is(0));
     }
 
     @Test
@@ -83,8 +83,8 @@ public class SnapshotRestoreDDLDispatcherTest extends CrateUnitTest {
             ctx
         );
         String template = PartitionName.templateName(null, "restoreme");
-        assertThat(ctx.resolvedIndices, contains(template + "*"));
-        assertThat(ctx.resolvedTemplates, contains(template));
+        assertThat(ctx.resolvedIndices(), contains(template + "*"));
+        assertThat(ctx.resolvedTemplates(), contains(template));
     }
 
     @Test
@@ -97,10 +97,10 @@ public class SnapshotRestoreDDLDispatcherTest extends CrateUnitTest {
             ),
             ctx
         );
-        assertThat(ctx.resolvedIndices.size(), is(0));
+        assertThat(ctx.resolvedIndices().size(), is(0));
         // If the snapshot doesn't contain any index which belongs to the table, it could be that the user
         // restores an empty partitioned table. For that case we attempt to restore the table template.
-        assertThat(ctx.resolvedTemplates, contains(PartitionName.templateName(null, "restoreme")));
+        assertThat(ctx.resolvedTemplates(), contains(PartitionName.templateName(null, "restoreme")));
     }
 
     @Test
@@ -125,8 +125,8 @@ public class SnapshotRestoreDDLDispatcherTest extends CrateUnitTest {
         actionListener.onResponse(response);
 
         SnapshotRestoreDDLDispatcher.ResolveIndicesAndTemplatesContext ctx = future.get();
-        assertThat(ctx.resolvedIndices, containsInAnyOrder("my_table", PartitionName.templateName(null, "my_partitioned_table") + "*"));
-        assertThat(ctx.resolvedTemplates, contains(PartitionName.templateName(null, "my_partitioned_table")));
+        assertThat(ctx.resolvedIndices(), containsInAnyOrder("my_table", PartitionName.templateName(null, "my_partitioned_table") + "*"));
+        assertThat(ctx.resolvedTemplates(), contains(PartitionName.templateName(null, "my_partitioned_table")));
     }
 
 }
