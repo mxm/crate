@@ -205,10 +205,11 @@ public class SnapshotRestoreDDLDispatcher {
         return f;
     }
 
+    @VisibleForTesting
     static class ResolveIndicesAndTemplatesContext {
 
-        Collection<String> resolvedIndices = new HashSet<>();
-        Collection<String> resolvedTemplates = new HashSet<>();
+        final Collection<String> resolvedIndices = new HashSet<>();
+        final Collection<String> resolvedTemplates = new HashSet<>();
 
         void addIndex(String index) {
             resolvedIndices.add(index);
