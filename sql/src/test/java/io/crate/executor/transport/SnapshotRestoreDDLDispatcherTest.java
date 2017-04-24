@@ -61,7 +61,7 @@ public class SnapshotRestoreDDLDispatcherTest extends CrateUnitTest {
     public void testResolveTableIndexFromSnapshot() throws Exception {
         SnapshotRestoreDDLDispatcher.ResolveIndicesAndTemplatesContext ctx = new SnapshotRestoreDDLDispatcher.ResolveIndicesAndTemplatesContext();
         SnapshotRestoreDDLDispatcher.ResolveFromSnapshotActionListener.resolveTableFromSnapshot(
-            new TableIdent("custom", "restoreme"),
+            new RestoreSnapshotAnalyzedStatement.RestoreTableInfo(new TableIdent("custom", "restoreme"), null),
             Collections.singletonList(
                 new SnapshotInfo(new SnapshotId("snapshot01", UUID.randomUUID().toString()), Collections.singletonList("custom.restoreme"), 0L)
             ),
@@ -75,7 +75,7 @@ public class SnapshotRestoreDDLDispatcherTest extends CrateUnitTest {
     public void testResolvePartitionedTableIndexFromSnapshot() throws Exception {
         SnapshotRestoreDDLDispatcher.ResolveIndicesAndTemplatesContext ctx = new SnapshotRestoreDDLDispatcher.ResolveIndicesAndTemplatesContext();
         SnapshotRestoreDDLDispatcher.ResolveFromSnapshotActionListener.resolveTableFromSnapshot(
-            new TableIdent(null, "restoreme"),
+            new RestoreSnapshotAnalyzedStatement.RestoreTableInfo(new TableIdent(null, "restoreme"), null),
             Collections.singletonList(
                 new SnapshotInfo(new SnapshotId("snapshot01", UUID.randomUUID().toString()),
                     Collections.singletonList(".partitioned.restoreme.046jcchm6krj4e1g60o30c0"), 0L)
@@ -91,7 +91,7 @@ public class SnapshotRestoreDDLDispatcherTest extends CrateUnitTest {
     public void testResolveEmptyPartitionedTemplate() throws Exception {
         SnapshotRestoreDDLDispatcher.ResolveIndicesAndTemplatesContext ctx = new SnapshotRestoreDDLDispatcher.ResolveIndicesAndTemplatesContext();
         SnapshotRestoreDDLDispatcher.ResolveFromSnapshotActionListener.resolveTableFromSnapshot(
-            new TableIdent(null, "restoreme"),
+            new RestoreSnapshotAnalyzedStatement.RestoreTableInfo(new TableIdent(null, "restoreme"), null),
             Collections.singletonList(
                 new SnapshotInfo(new SnapshotId("snapshot01", UUID.randomUUID().toString()), ImmutableList.of(), 0L)
             ),

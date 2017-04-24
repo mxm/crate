@@ -180,13 +180,13 @@ public class SnapshotRestoreDDLDispatcher {
         for (RestoreSnapshotAnalyzedStatement.RestoreTableInfo table : restoreTables) {
             if (table.hasPartitionInfo()) {
                 resolveIndicesAndTemplatesContext.addIndex(table.partitionName().asIndexName());
-                resolveIndicesAndTemplatesContext.addTemplate(PartitionName.templateName(table.tableIdent().schema(), table.tableIdent().name()));
+                resolveIndicesAndTemplatesContext.addTemplate(table.createPartitionsTemplateName());
             } else if (ignoreUnavailable) {
                 // If ignoreUnavailable is true, it's cheaper to simply return indexName and the partitioned wildcard instead
                 // checking if it's a partitioned table or not
                 resolveIndicesAndTemplatesContext.addIndex(table.tableIdent().indexName());
                 // For the case its a partitioned table we restore all partitions and the templates
-                String templateName = PartitionName.templateName(table.tableIdent().schema(), table.tableIdent().name());
+                String templateName = table.createPartitionsTemplateName();
                 resolveIndicesAndTemplatesContext.addIndex(templateName + "*");
                 resolveIndicesAndTemplatesContext.addTemplate(templateName);
             } else {
@@ -238,22 +238,23 @@ public class SnapshotRestoreDDLDispatcher {
         public void onResponse(GetSnapshotsResponse getSnapshotsResponse) {
             List<SnapshotInfo> snapshots = getSnapshotsResponse.getSnapshots();
             for (RestoreSnapshotAnalyzedStatement.RestoreTableInfo table : toResolve) {
-                resolveTableFromSnapshot(table.tableIdent(), snapshots, resolveIndicesAndTemplatesContext);
+                resolveTableFromSnapshot(table, snapshots, resolveIndicesAndTemplatesContext);
             }
             returnFuture.complete(resolveIndicesAndTemplatesContext);
         }
 
         @VisibleForTesting
-        public static void resolveTableFromSnapshot(TableIdent tableIdent, List<SnapshotInfo> snapshots,
+        public static void resolveTableFromSnapshot(RestoreSnapshotAnalyzedStatement.RestoreTableInfo table,
+                                                    List<SnapshotInfo> snapshots,
                                                     ResolveIndicesAndTemplatesContext ctx) throws TableUnknownException {
-            String name = tableIdent.indexName();
+            String name = table.tableIdent().indexName();
             for (SnapshotInfo snapshot : snapshots) {
                 for (String index : snapshot.indices()) {
                     if (name.equals(index)) {
                         ctx.addIndex(index);
                         return;
-                    } else if(isIndexPartitionOfTable(index, tableIdent)) {
-                        String templateName = PartitionName.templateName(tableIdent.schema(), tableIdent.name());
+                    } else if(isIndexPartitionOfTable(index, table.tableIdent())) {
+                        String templateName = table.createPartitionsTemplateName();
                         // add a partitions wildcard
                         // to match all partitions if a partitioned table was meant
                         ctx.addIndex(templateName + "*");
@@ -262,7 +263,7 @@ public class SnapshotRestoreDDLDispatcher {
                     }
                 }
             }
-            ctx.addTemplate(PartitionName.templateName(tableIdent.schema(), tableIdent.name()));
+            ctx.addTemplate(table.createPartitionsTemplateName());
         }
 
         private static boolean isIndexPartitionOfTable(String index, TableIdent tableIdent) {

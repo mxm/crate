@@ -102,5 +102,9 @@ public class RestoreSnapshotAnalyzedStatement implements DDLStatement {
         public boolean hasPartitionInfo() {
             return partitionName != null;
         }
+
+        public String createPartitionsTemplateName() {
+            return PartitionName.templateName(tableIdent.schema(), tableIdent().name());
+        }
     }
 }
