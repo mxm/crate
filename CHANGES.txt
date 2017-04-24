@@ -147,8 +147,6 @@ Fixes
 
  - Fix: Restoring empty partitioned table wasn't possible
 
-    - Updated elasticsearch upstream to allow restore of partition templates
-
  - Enterprise license ident wording has been corrected in the admin UI.
 
  - Fix: Usage of ``DISTINCT`` in a query with a ``GROUP BY`` was producing
