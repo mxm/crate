@@ -111,10 +111,6 @@ Breaking Changes
 Changes
 =======
  
- - Added possibility to restore empty partitioned tables.
-
-    - Updated elasticsearch upstream to allow restore of partition templates
-
  - Added support for `GROUP BY` on joins.
 
  - License ident is now displayed in the Enterprise Edition.
@@ -148,6 +144,10 @@ Changes
 
 Fixes
 =====
+
+ - Fix: Restoring empty partitioned table wasn't possible
+
+    - Updated elasticsearch upstream to allow restore of partition templates
 
  - Enterprise license ident wording has been corrected in the admin UI.
 
