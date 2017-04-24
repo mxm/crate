@@ -110,7 +110,7 @@ Breaking Changes
 
 Changes
 =======
- 
+
  - Added support for `GROUP BY` on joins.
 
  - License ident is now displayed in the Enterprise Edition.
@@ -145,7 +145,7 @@ Changes
 Fixes
 =====
 
- - Fix: Restoring empty partitioned table wasn't possible
+ - Fix: Restoring empty partitioned tables wasn't possible
 
  - Enterprise license ident wording has been corrected in the admin UI.
 
