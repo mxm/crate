@@ -23,7 +23,6 @@
 package io.crate.executor.transport;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.ImmutableList;
 import io.crate.action.FutureActionListener;
 import io.crate.analyze.CreateSnapshotAnalyzedStatement;
 import io.crate.analyze.DropSnapshotAnalyzedStatement;
@@ -56,7 +55,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
-import static io.crate.analyze.CreateSnapshotAnalyzedStatement.ALL_INDICES;
 import static io.crate.analyze.SnapshotSettings.IGNORE_UNAVAILABLE;
 import static io.crate.analyze.SnapshotSettings.WAIT_FOR_COMPLETION;
 
@@ -66,6 +64,7 @@ public class SnapshotRestoreDDLDispatcher {
 
     private static final Logger LOGGER = Loggers.getLogger(SnapshotRestoreDDLDispatcher.class);
     private final TransportActionProvider transportActionProvider;
+    private final String[] ALL_TEMPLATES = new String[]{"_all"};
 
     @Inject
     public SnapshotRestoreDDLDispatcher(TransportActionProvider transportActionProvider) {
@@ -152,10 +151,11 @@ public class SnapshotRestoreDDLDispatcher {
         IndicesOptions indicesOptions = IndicesOptions.fromOptions(ignoreUnavailable, true, true, false, IndicesOptions.lenientExpandOpen());
         FutureActionListener<RestoreSnapshotResponse, Long> listener = new FutureActionListener<>(r -> 1L);
         resolveIndexNames(analysis.restoreTables(), ignoreUnavailable, transportActionProvider.transportGetSnapshotsAction(), analysis.repositoryName())
-            .whenComplete((ResolveIndicesAndTemplatesContext resolvedIndicesAndSnapshots, Throwable t) -> {
+            .whenComplete((ResolveIndicesAndTemplatesContext ctx, Throwable t) -> {
                 if (t == null) {
-                    List<String> indexNames = ImmutableList.copyOf(resolvedIndicesAndSnapshots.resolvedIndices);
-                    List<String> templateNames = analysis.restoreAll() ? ALL_INDICES : ImmutableList.copyOf(resolvedIndicesAndSnapshots.resolvedTemplates);
+                    String[] indexNames = ctx.resolvedIndices.toArray(new String[ctx.resolvedIndices.size()]);
+                    String[] templateNames = analysis.restoreAll() ? ALL_TEMPLATES :
+                        ctx.resolvedTemplates.toArray(new String[ctx.resolvedTemplates.size()]);
                     RestoreSnapshotRequest request = new RestoreSnapshotRequest(analysis.repositoryName(), analysis.snapshotName())
                         .indices(indexNames)
                         .templates(templateNames)
