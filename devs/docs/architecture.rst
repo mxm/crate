@@ -34,13 +34,13 @@ The engine is comprised of the following components:
 
 Class entry point:
 
-- `SqlParser`
-- `Analyzer`
-- `Planner`
-- `LogicalPlan` / `ExecutionPlan`
-- `NodeOperationTree`
-- `ExecutionPhasesTask`
-- `BatchIterator`
+- `SqlParser`_
+- `Analyzer`_
+- `Planner`_
+- `LogicalPlan`_ / `ExecutionPlan`_
+- `NodeOperationTree`_
+- `ExecutionPhasesTask`_
+- `BatchIterator`_
 
 Input
 .....
@@ -58,9 +58,9 @@ the MQTT protocol.
 
 Class entry points:
 
-- `CrateRestMainAction`
-- `PostgresWireProtocol`
-- `MqttNettyHandler`
+- `CrateRestMainAction`_
+- `PostgresWireProtocol`_
+- `MqttNettyHandler`_
 
 Transport
 ..........
@@ -76,8 +76,8 @@ replication is performed, and when indices are updated or built.
 
 Class entry points:
 
-- `TransportRequest`
-- `TransportJobAction`
+- `TransportRequest`_
+- `TransportJobAction`_
 
 Storage
 ........
@@ -123,5 +123,28 @@ aggregations with them.
 
 Class entry points:
 
-- `LuceneQueryBuilder`
-- `LuceneBatchIterator`
+- `LuceneQueryBuilder`_
+- `LuceneBatchIterator`_
+
+
+.. References:
+
+.. _SqlParser: https://github.com/crate/crate/blob/98e5fe3d911c8ffdf605c7259f738b24ef1c4085/sql-parser/src/main/java/io/crate/sql/parser/SqlParser.java
+.. _Analyzer: https://github.com/crate/crate/blob/98e5fe3d911c8ffdf605c7259f738b24ef1c4085/sql/src/main/java/io/crate/analyze/Analyzer.java
+.. _Planner: https://github.com/crate/crate/blob/98e5fe3d911c8ffdf605c7259f738b24ef1c4085/sql/src/main/java/io/crate/planner/Planner.java
+.. _LogicalPlan: https://github.com/crate/crate/blob/98e5fe3d911c8ffdf605c7259f738b24ef1c4085/sql/src/main/java/io/crate/planner/operators/LogicalPlan.java
+.. _ExecutionPlan: https://github.com/crate/crate/blob/98e5fe3d911c8ffdf605c7259f738b24ef1c4085/sql/src/main/java/io/crate/planner/operators/LogicalPlan.java
+.. _NodeOperationTree: https://github.com/crate/crate/blob/98e5fe3d911c8ffdf605c7259f738b24ef1c4085/sql/src/main/java/io/crate/execution/dsl/phases/NodeOperationTree.java
+.. _ExecutionPhasesTask: https://github.com/crate/crate/blob/98e5fe3d911c8ffdf605c7259f738b24ef1c4085/sql/src/main/java/io/crate/execution/engine/ExecutionPhasesTask.java
+.. _BatchIterator: https://github.com/crate/crate/blob/98e5fe3d911c8ffdf605c7259f738b24ef1c4085/dex/src/main/java/io/crate/data/BatchIterator.java
+
+
+.. _CrateRestMainAction: https://github.com/crate/crate/blob/98e5fe3d911c8ffdf605c7259f738b24ef1c4085/http/src/main/java/io/crate/rest/CrateRestMainAction.java
+.. _PostgresWireProtocol: https://github.com/crate/crate/blob/98e5fe3d911c8ffdf605c7259f738b24ef1c4085/sql/src/main/java/io/crate/protocols/postgres/PostgresWireProtocol.java
+.. _MqttNettyHandler: https://github.com/crate/crate/blob/98e5fe3d911c8ffdf605c7259f738b24ef1c4085/enterprise/mqtt/src/main/java/io/crate/mqtt/netty/MqttNettyHandler.java
+
+.. _TransportRequest: https://github.com/crate/crate/blob/98e5fe3d911c8ffdf605c7259f738b24ef1c4085/sql/src/main/java/io/crate/execution/dml/TransportShardAction.java
+.. _TransportJobAction: https://github.com/crate/crate/blob/98e5fe3d911c8ffdf605c7259f738b24ef1c4085/sql/src/main/java/io/crate/execution/jobs/transport/TransportJobAction.java
+
+.. _LuceneQueryBuilder: https://github.com/crate/crate/blob/98e5fe3d911c8ffdf605c7259f738b24ef1c4085/sql/src/main/java/io/crate/lucene/LuceneQueryBuilder.java
+.. _LuceneBatchIterator: https://github.com/crate/crate/blob/98e5fe3d911c8ffdf605c7259f738b24ef1c4085/sql/src/main/java/io/crate/execution/engine/collect/collectors/LuceneBatchIterator.java
